@@ -6,7 +6,7 @@ def read_requirements():
         return [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 setup(
-    name='google-tasks-sync',
+    name='gtasks2md',
     version='0.1.0',
     description='Google Tasks to Markdown Sync',
     py_modules=['auth', 'cli', 'core', 'google_tasks', 'main', 'markdown', 'models'],
