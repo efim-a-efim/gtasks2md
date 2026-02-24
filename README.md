@@ -1,97 +1,105 @@
-# Google Tasks to Markdown Sync
+# gtasks2md
 
-A command-line tool that syncs your Google Tasks with local Markdown files. It allows you to export your tasks into a readable Markdown format, edit them locally, and import them back into Google Tasks.
+A CLI tool written in Go to synchronize Google Tasks with local Markdown files. `gtasks2md` allows you to export your Google Tasks into structured Markdown and, vice versa, import and sync local Markdown checklists back up to Google Tasks.
+
+## Features
+
+- **Export:** Save all your Google Task lists to individual `.md` files in a directory, or export a single list directly to a specific `.md` file.
+- **Import:** Push a directory of `.md` checklists to Google Tasks (matching lists by the H1 title in the Markdown), or upload a single `.md` file to a specified list.
+- **Hierarchy support:** Natively supports subtasks and multiline notes.
+- **Two-way Sync:** Automatically compares task states and updates the titles, notes, and completions accordingly when importing.
 
 ## Installation
 
-1. Clone this repository or download the source code.
-2. (Optional but recommended) Create and activate a Python virtual environment.
-3. Install the dependencies using `pip`:
+You can download pre-built binaries for Linux, macOS, and Windows directly from the GitHub Releases page.
 
-```bash
-pip install -r requirements.txt
-```
+## Prerequisites
 
-## Authentication
+1. **Google Cloud Project** with the **Google Tasks API** enabled.
+2. An OAuth 2.0 Client ID (`credentials.json`) configured as a "Desktop app".
 
-This tool uses the Google Tasks API, which requires OAuth 2.0 authentication.
+## Setup
 
-### Obtaining Credentials
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
 2. Create a new project or select an existing one.
-3. Enable the **Google Tasks API** for your project.
+3. Navigate to **APIs & Services > Library** and enable the **Google Tasks API**.
 4. Go to **APIs & Services > Credentials**.
 5. Click **Create Credentials > OAuth client ID**.
-6. Select **Desktop app** as the application type and create it.
-7. Download the JSON file and rename it to `credentials.json`.
+6. Select **Desktop app** as the application type.
+7. Download the resulting JSON file and rename it to `credentials.json`.
+8. Place `credentials.json` in the root of the project directory or configure the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to it.
 
-### Passing Credentials to the Tool
-You can provide the credentials to the tool in three ways:
-1. **Command Line Flag**: Use the `-c` or `--credentials` flag when running a command.
-   ```bash
-   python main.py export ./tasks --credentials path/to/credentials.json
-   ```
-2. **Environment Variable**: Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path of your `credentials.json` file.
-   ```bash
-   export GOOGLE_APPLICATION_CREDENTIALS="path/to/credentials.json"
-   ```
-3. **Default Location**: Place the `credentials.json` file in the current working directory where you run the tool.
+## Building the Tool
 
-*Note: The first time you run a command, a browser window will open to authenticate your Google account. A `token.json` file will be created to store your session locally for future use.*
+Alternatively, you can clone the repository and build the binary from source using the Go toolchain. Use **Go 1.20.x** or newer.
 
-## Usage Examples
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd google-tasks-import
 
-The tool supports exporting and importing single task lists or multiple lists at once.
+# Build the executable
+go build -o gtasks2md main.go
+```
+
+## Usage
+
+### Authentication
+
+On your very first run, `gtasks2md` will print a URL to your console. Open this URL in your browser, authenticate with your Google Account, and paste the authorization code back into the terminal. This will generate a local `token.json` file so you won't need to authenticate again until the token expires.
+
+### Global Flags
+
+- `-c, --credentials string`: Path to the OAuth 2.0 `credentials.json` file (default is `credentials.json` in the current directory or `GOOGLE_APPLICATION_CREDENTIALS`).
 
 ### Exporting Tasks
 
-*   **Export a single list to a file:**
-    ```bash
-    python main.py export my_tasks.md --list-name "My Tasks"
-    ```
-*   **Export all lists to a directory:**
-    ```bash
-    python main.py export ./my_tasks_directory
-    ```
+Export task lists from Google Tasks to local Markdown files.
+
+```bash
+# Export all your task lists into the current directory
+./gtasks2md export
+
+# Export all your task lists into a specific folder
+./gtasks2md export ./my-tasks
+
+# Export a single specific list to a single Markdown file
+./gtasks2md export ./my-tasks/groceries.md --list-name "Groceries"
+```
 
 ### Importing Tasks
 
-*   **Import a single file to a list:**
-    ```bash
-    python main.py import my_tasks.md --list-name "Target List Name"
-    ```
-    *(If `--list-name` is omitted, the title inside the markdown file or the filename is used.)*
+Import task lists from local Markdown files up to Google Tasks.
 
-*   **Import all files from a directory:**
-    ```bash
-    python main.py import ./my_tasks_directory
-    ```
+```bash
+# Import all markdown files in a directory
+# The list name on Google Tasks will be determined by the `# Heading 1` of each file
+./gtasks2md import ./my-tasks
 
-## Markdown Format Specification
+# Import a single markdown file
+./gtasks2md import ./my-tasks/groceries.md
 
-The tool uses a strict Markdown format to map accurately to the Google Tasks API model. Google Tasks supports top-level tasks, notes (descriptions), completion status, and exactly one level of nesting (subtasks).
+# Import a single markdown file into a specifically named list (overrides the heading)
+./gtasks2md import ./my-tasks/groceries.md --list-name "Weekend Shopping"
+```
 
-### Format Rules
+## Markdown Structure
 
-1.  **List Title**: The first `H1` (`#`) in the document determines the Task List title.
-2.  **Top-Level Tasks**: Unordered list items at the root indentation level with a checkbox (`- [ ]` or `- [x]`).
-3.  **Completion Status**: Represented using standard task list syntax:
-    *   `[ ]` for pending tasks
-    *   `[x]` or `[X]` for completed tasks
-4.  **Nested Tasks (Subtasks)**: Unordered list items indented by exactly 4 spaces (or 1 tab) under a parent task. *Note: Google Tasks API only supports 1 level of depth.*
-5.  **Notes (Descriptions)**: Any text lines indented by exactly 4 spaces (or 1 tab) that do *not* start with a checkbox. These lines belong to the most recently declared task or subtask above them.
-
-### Example `tasks.md`
+The sync process relies on a specific structural format in your Markdown files. A valid Google Tasks list export looks like this:
 
 ```markdown
-# My Tasks
+# My Google Tasks
 
 - [ ] Buy groceries
-    Need to get milk, eggs, and bread.
-    Also check if they have any fresh strawberries.
-    - [ ] Milk
-    - [x] Bread
-- [x] Call the plumber
-    Phone number: 555-0198. Issue is the leaky kitchen sink.
-- [ ] Schedule dentist appointment
+    Milk, Eggs, Bread
+    - [x] Pay at checkout
+        Use new credit card
+- [x] Clean the house
+    Focus on living room
 ```
+
+**Rules:**
+- **Title:** The top `# H1` defines the Google Task List title.
+- **Tasks:** Top-level tasks are defined using the `- [ ] ` or `- [x] ` checklist syntax.
+- **Subtasks:** Must be indented with 4 spaces or a single tab under their parent task.
+- **Notes:** Any text placed directly underneath a task/subtask and indented accordingly will be treated as the task's note.
