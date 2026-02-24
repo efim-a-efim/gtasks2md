@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"gtasks2md/internal/api"
 	"gtasks2md/internal/markdown"
@@ -136,7 +137,7 @@ func ExportTasks(outputPath string, listName string, credentialsPath string) err
 
 			var builder strings.Builder
 			for _, c := range rl.Title {
-				if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '-' || c == '_' {
+				if unicode.IsLetter(c) || unicode.IsDigit(c) || c == ' ' || c == '-' || c == '_' {
 					builder.WriteRune(c)
 				}
 			}
